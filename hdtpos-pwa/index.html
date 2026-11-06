@@ -2095,7 +2095,7 @@ var SCHEMA = {
 };
 
 var SETTING_DEFAULTS = {
-  store_name: 'HDT POS', store_address: '', store_phone: '', store_email: '', tax_no: '',
+  store_name: 'HDT POS', store_address: '', store_phone: '', store_email: '', store_website: '', tax_no: '',
   bank_name: '', bank_account: '', bank_holder: '',
   tax_rate: '0', paper_width: '80', receipt_footer: 'Terima kasih atas kunjungan Anda.',
   show_logo_on_receipt: '1', auto_print: '0', inv_code: '200', inv_year: '', inv_next: '1'
@@ -2202,7 +2202,7 @@ function createBackend_(P) {
     var qrisReady = kv['qris_image_0'] !== undefined && kv['qris_image_0'] !== '';
     var next = (kv.inv_year === yy) ? (Number(kv.inv_next) || 1) : 1;
     return {
-      store_name: s.store_name, store_address: s.store_address, store_phone: s.store_phone, store_email: s.store_email,
+      store_name: s.store_name, store_address: s.store_address, store_phone: s.store_phone, store_email: s.store_email, store_website: s.store_website,
       tax_no: s.tax_no, bank_name: s.bank_name, bank_account: s.bank_account, bank_holder: s.bank_holder,
       tax_rate: Number(s.tax_rate) || 0, paper_width: Number(s.paper_width) === 58 ? 58 : 80,
       receipt_footer: s.receipt_footer, show_logo_on_receipt: s.show_logo_on_receipt === '1',
@@ -2697,7 +2697,7 @@ function createBackend_(P) {
   /* ----- pengaturan (admin) ----- */
   A.settingsSave = { roles: ['admin'], write: true, run: function (p) {
     var set = {}, del = [], cur = loadSettings();
-    var textKeys = { store_name: [100, true], store_address: [250, false], store_phone: [40, false], store_email: [100, false], tax_no: [40, false],
+    var textKeys = { store_name: [100, true], store_address: [250, false], store_phone: [40, false], store_email: [100, false], store_website: [100, false], tax_no: [40, false],
                      bank_name: [60, false], bank_account: [60, false], bank_holder: [80, false], receipt_footer: [250, false] };
     Object.keys(textKeys).forEach(function (k) {
       if (p[k] !== undefined) { set[k] = str(p[k], textKeys[k][0], k === 'store_name' ? 'Nama toko' : 'Isian', textKeys[k][1]); }
@@ -3634,6 +3634,7 @@ function receiptHtml(t, width) {
     '<div class="r-center r-store">' + esc(s.store_name) + '</div>' +
     (s.store_address ? '<div class="r-center pre">' + esc(s.store_address) + '</div>' : '') +
     (s.store_phone ? '<div class="r-center">Telp. ' + esc(s.store_phone) + '</div>' : '') +
+    (s.store_website ? '<div class="r-center">' + esc(s.store_website) + '</div>' : '') +
     '<hr class="r-sep">' + row('No', esc(t.invoice_no)) + row('Tanggal', dmyhm(t.date)) + row('Kasir', esc(t.cashier)) +
     (t.customer ? row('Pelanggan', esc(t.customer)) : '') + '<hr class="r-sep">' + items + '<hr class="r-sep">' + row('Subtotal', int(t.subtotal));
   if (t.discount_amount > 0) { h += row('Diskon' + (t.discount_type === 'percent' ? ' (' + t.discount_value + '%)' : ''), '-' + int(t.discount_amount)); }
@@ -3775,6 +3776,7 @@ async function escReceipt(t, paper) {
   p.center().bold(1).size(0x11).lines(s.store_name || '').size(0).bold(0);
   if (s.store_address) { p.lines(s.store_address); }
   if (s.store_phone) { p.lines('Telp. ' + s.store_phone); }
+  if (s.store_website) { p.lines(s.store_website); }
   p.left().sep().lr('No', t.invoice_no).lr('Tanggal', dmyhm(t.date)).lr('Kasir', t.cashier || '');
   if (t.customer) { p.lr('Pelanggan', t.customer); }
   p.sep();
@@ -3795,6 +3797,7 @@ async function escService(x, paper) {
   p.center().bold(1).size(0x11).lines(s.store_name || 'Hardware Technology').size(0).bold(0);
   if (s.store_address) { p.lines(s.store_address); }
   if (s.store_phone) { p.lines('Telp. ' + s.store_phone); }
+  if (s.store_website) { p.lines(s.store_website); }
   p.left().sep().center().bold(1).ln('STRUK SERVICE').bold(0).left().sep()
     .lr('No', x.service_no || '-').lr('Tanggal', dmyhm(x.date_in)).lr('Pelanggan', x.customer_name || '-').lr('No. HP', x.phone || '-').sep()
     .bold(1).lines((x.item_name || '') + (x.item_color ? ' - ' + x.item_color : '')).bold(0);
@@ -4090,7 +4093,7 @@ function invoiceHtml(t) {
   return '<div class="inv">' +
     '<div class="inv-head"><div><h1>INVOICE</h1><h2>' + esc(s.store_name) + '</h2>' +
     (s.store_address ? '<p class="addr">' + esc(s.store_address) + '</p>' : '') +
-    '<table class="kv">' + kv('Tax No.:', s.tax_no) + kv('Phone:', s.store_phone) + kv('Email:', s.store_email) + '</table></div>' +
+    '<table class="kv">' + kv('Tax No.:', s.tax_no) + kv('Phone:', s.store_phone) + kv('Email:', s.store_email) + kv('Website:', s.store_website) + '</table></div>' +
     (logo ? '<img class="inv-logo" src="' + esc(logo) + '" alt="">' : '') + '</div><hr>' +
     '<div class="inv-mid"><div><b>Bill to</b><p>' + esc(t.customer) + '</p>' + (t.customer_addr ? '<p>' + esc(t.customer_addr) + '</p>' : '') + '</div>' +
     '<table class="kv">' + kv('Invoice No.:', t.invoice_no) + kv('Date:', dmy(t.date)) + kv('Due date:', dmy(t.date)) + kv('Payment status:', 'Paid') +
@@ -4229,7 +4232,7 @@ function quoteHtml(q, items) {
   return '<div class="inv">' +
     '<div class="inv-head"><div><h1>PENAWARAN HARGA</h1><h2>' + esc(s.store_name) + '</h2>' +
     (s.store_address ? '<p class="addr">' + esc(s.store_address) + '</p>' : '') +
-    '<table class="kv">' + kv('Telp.:', s.store_phone) + kv('Email:', s.store_email) + '</table></div>' +
+    '<table class="kv">' + kv('Telp.:', s.store_phone) + kv('Email:', s.store_email) + kv('Website:', s.store_website) + '</table></div>' +
     (logo ? '<img class="inv-logo" src="' + esc(logo) + '" alt="">' : '') + '</div><hr>' +
     '<div class="inv-mid"><div><b>Kepada Yth.</b><p>' + esc(q.customer || '-') + '</p>' + (q.addr ? '<p>' + esc(q.addr) + '</p>' : '') + (q.phone ? '<p>' + esc(q.phone) + '</p>' : '') + '</div>' +
     '<table class="kv">' + kv('No. Penawaran:', q.no) + kv('Tanggal:', dmy(q.date)) + kv('Berlaku hingga:', dmy(until)) + '</table></div>' +
@@ -5490,7 +5493,8 @@ function viewPengaturan() {
       '<div class="field"><span class="field-label">Logo (tampil di invoice, struk, dan menu)</span><div class="logo-box" id="logoBox"></div></div>' +
       f('sName', 'Nama usaha *', s.store_name, '', 'maxlength="100"') +
       '<label class="field"><span>Alamat</span><textarea id="sAddr" maxlength="250" placeholder="Boleh 2 baris">' + esc(s.store_address) + '</textarea></label>' +
-      '<div class="grid3">' + f('sPhone', 'Telepon', s.store_phone) + f('sEmail', 'Email', s.store_email) + f('sTax', 'No. pajak (NPWP)', s.tax_no) + '</div></div></div>' +
+      '<div class="grid3">' + f('sPhone', 'Telepon', s.store_phone) + f('sEmail', 'Email', s.store_email) + f('sTax', 'No. pajak (NPWP)', s.tax_no) + '</div>' +
+      f('sWeb', 'Website', s.store_website, 'Contoh: www.namausaha.com', 'maxlength="100" inputmode="url" autocapitalize="none"') + '</div></div>' +
     '<div class="card"><div class="card-head"><h2>Invoice & rekening</h2></div><div class="card-body">' +
       '<div class="grid2"><label class="field"><span>Kode dokumen pada nomor invoice</span><input id="sCode" type="text" maxlength="10" value="' + esc(s.inv_code) + '" data-inp="invPrev"></label>' +
       '<label class="field"><span>Nomor urut berikutnya (tahun ' + esc('20' + s.inv_yy) + ')</span><input id="sNext" class="money" type="text" inputmode="numeric" value="' + s.inv_next + '" data-inp="invPrev"><small>Untuk melanjutkan nomor dari sistem lama, isi angka setelah nomor terakhir Anda.</small></label></div>' +
@@ -5589,7 +5593,7 @@ Object.assign(ACT, {
   setSave(t) {
     run(t, async () => {
       S.settings = await api('settingsSave', {
-        store_name: $('#sName').value, store_address: $('#sAddr').value, store_phone: $('#sPhone').value, store_email: $('#sEmail').value, tax_no: $('#sTax').value,
+        store_name: $('#sName').value, store_address: $('#sAddr').value, store_phone: $('#sPhone').value, store_email: $('#sEmail').value, store_website: $('#sWeb').value, tax_no: $('#sTax').value,
         inv_code: $('#sCode').value, inv_next: moneyVal($('#sNext').value), bank_name: $('#sBank').value, bank_account: $('#sAcc').value, bank_holder: $('#sHolder').value,
         tax_rate: String($('#sTaxRate').value).replace(',', '.'), paper_width: Number($('#sPaper').value), receipt_footer: $('#sFoot').value,
         show_logo_on_receipt: $('#sLogoRc').checked, auto_print: $('#sAuto').checked
@@ -5672,6 +5676,7 @@ function serviceReceiptMarkup(x,width){
     '<div class="r-center r-store">'+esc(s.store_name||'Hardware Technology')+'</div>'+
     (s.store_address?'<div class="r-center pre">'+esc(s.store_address)+'</div>':'')+
     (s.store_phone?'<div class="r-center">Telp. '+esc(s.store_phone)+'</div>':'')+
+    (s.store_website?'<div class="r-center">'+esc(s.store_website)+'</div>':'')+
     '<hr class="r-sep"><div class="r-center" style="font-weight:700">STRUK SERVICE</div><hr class="r-sep">'+
     row('No',x.service_no)+row('Tanggal',dmyhm(x.date_in))+row('Pelanggan',x.customer_name)+row('No. HP',x.phone)+
     '<hr class="r-sep">'+

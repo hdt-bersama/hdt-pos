@@ -195,7 +195,7 @@ insert into _locks (key, locked_at) values ('global', null) on conflict (key) do
 -- Nilai bawaan pengaturan toko (sama seperti SETTING_DEFAULTS di Core.gs)
 -- ---------------------------------------------------------------------
 insert into settings (key, value) values
-  ('store_name', 'HDT POS'), ('store_address', ''), ('store_phone', ''), ('store_email', ''),
+  ('store_name', 'HDT POS'), ('store_address', ''), ('store_phone', ''), ('store_email', ''), ('store_website', ''),
   ('tax_no', ''), ('bank_name', ''), ('bank_account', ''), ('bank_holder', ''),
   ('tax_rate', '0'), ('paper_width', '80'), ('receipt_footer', 'Terima kasih atas kunjungan Anda.'),
   ('show_logo_on_receipt', '1'), ('auto_print', '0'), ('inv_code', '200'), ('inv_year', ''), ('inv_next', '1')

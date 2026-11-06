@@ -30,7 +30,7 @@ var SCHEMA = {
 };
 
 var SETTING_DEFAULTS = {
-  store_name: 'HDT POS', store_address: '', store_phone: '', store_email: '', tax_no: '',
+  store_name: 'HDT POS', store_address: '', store_phone: '', store_email: '', store_website: '', tax_no: '',
   bank_name: '', bank_account: '', bank_holder: '',
   tax_rate: '0', paper_width: '80', receipt_footer: 'Terima kasih atas kunjungan Anda.',
   show_logo_on_receipt: '1', auto_print: '0', inv_code: '200', inv_year: '', inv_next: '1'
@@ -137,7 +137,7 @@ function createBackend_(P) {
     var qrisReady = kv['qris_image_0'] !== undefined && kv['qris_image_0'] !== '';
     var next = (kv.inv_year === yy) ? (Number(kv.inv_next) || 1) : 1;
     return {
-      store_name: s.store_name, store_address: s.store_address, store_phone: s.store_phone, store_email: s.store_email,
+      store_name: s.store_name, store_address: s.store_address, store_phone: s.store_phone, store_email: s.store_email, store_website: s.store_website,
       tax_no: s.tax_no, bank_name: s.bank_name, bank_account: s.bank_account, bank_holder: s.bank_holder,
       tax_rate: Number(s.tax_rate) || 0, paper_width: Number(s.paper_width) === 58 ? 58 : 80,
       receipt_footer: s.receipt_footer, show_logo_on_receipt: s.show_logo_on_receipt === '1',
@@ -632,7 +632,7 @@ function createBackend_(P) {
   /* ----- pengaturan (admin) ----- */
   A.settingsSave = { roles: ['admin'], write: true, run: function (p) {
     var set = {}, del = [], cur = loadSettings();
-    var textKeys = { store_name: [100, true], store_address: [250, false], store_phone: [40, false], store_email: [100, false], tax_no: [40, false],
+    var textKeys = { store_name: [100, true], store_address: [250, false], store_phone: [40, false], store_email: [100, false], store_website: [100, false], tax_no: [40, false],
                      bank_name: [60, false], bank_account: [60, false], bank_holder: [80, false], receipt_footer: [250, false] };
     Object.keys(textKeys).forEach(function (k) {
       if (p[k] !== undefined) { set[k] = str(p[k], textKeys[k][0], k === 'store_name' ? 'Nama toko' : 'Isian', textKeys[k][1]); }
