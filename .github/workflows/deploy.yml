@@ -31,7 +31,7 @@ jobs:
 
       - name: Deploy Edge Function "api"
         working-directory: supabase
-        run: supabase functions deploy api --project-ref "$SUPABASE_PROJECT_REF"
+        run: supabase functions deploy api --project-ref "$SUPABASE_PROJECT_REF" --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
