@@ -260,6 +260,12 @@ table.t{ width:100%; border-collapse:collapse; font-size:14px; }
 .pcard:disabled{ opacity:.5; cursor:not-allowed; }
 .pcard .nm{ font-weight:600; line-height:1.25; overflow-wrap:anywhere; } .pcard .pr{ margin-top:auto; font-size:16px; font-weight:700; color:var(--brand); } .pcard .st{ font-size:12px; color:var(--muted); }
 .pcard .st.low{ color:var(--warn); font-weight:700; } .pcard .st.out{ color:var(--danger); font-weight:700; }
+.qpick{ display:flex; align-items:center; gap:8px; width:100%; min-width:180px; min-height:42px; padding:6px 10px; text-align:left; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+.qpick:hover{ border-color:var(--brand); } .qpick .nm{ flex:1; line-height:1.25; overflow-wrap:anywhere; } .qpick.empty-pick .nm{ color:var(--muted); } .qpick .chev{ color:var(--muted); font-size:12px; }
+.qp-chips{ display:flex; gap:6px; margin:10px 0 0; } .qp-list{ display:flex; flex-direction:column; gap:6px; margin-top:12px; max-height:52vh; overflow-y:auto; }
+.qp-item{ display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; text-align:left; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:10px; }
+.qp-item:hover{ border-color:var(--brand); box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent); }
+.qp-item .main{ flex:1; min-width:0; } .qp-item .nm{ display:block; font-weight:600; line-height:1.25; overflow-wrap:anywhere; } .qp-item .sub{ display:block; margin-top:2px; font-size:12px; color:var(--muted); } .qp-item .pr{ font-weight:700; color:var(--brand); white-space:nowrap; }
 .qris-view{ text-align:center; } .qris-view img{ display:block; margin:0 auto 10px; max-width:100%; max-height:36vh; padding:8px; background:#fff; border:1px solid var(--line); border-radius:10px; } .qris-view p{ margin:4px 0; }
 .pane-switch{ display:none; }
 @media (max-width:900px){
@@ -4143,20 +4149,28 @@ async function showInvoice(id) {
    ===================================================================== */
 const DEFAULT_QUOTE_NOTE = '1. Harga berlaku sampai dengan tanggal yang tercantum pada penawaran ini.\n2. Harga dapat berubah sewaktu-waktu setelah tanggal berlaku berakhir.\n3. Pembayaran dilakukan setelah kesepakatan/PO disetujui, sesuai ketentuan yang berlaku.\n4. Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.\n5. Untuk transaksi di atas Rp5.000.000 wajib memberikan DP minimal 50%.\n6. Dokumen ini adalah penawaran harga, bukan invoice atau bukti pembayaran.';
 S.quoteTab = 'form'; S.quoteQ = '';
+/** Baris item kosong. "pid" = id produk di database (hanya di sisi aplikasi, tidak ikut disimpan ke server). */
+const blankQuoteItem = () => ({ name: '', qty: 1, price: 0, pid: 0 });
+/** Cari id produk dari nama (untuk penawaran lama yang dibuka kembali). 0 bila tidak ada di database. */
+function quoteProdId(name) {
+  const k = String(name || '').trim().toLowerCase();
+  const p = k && S.products.find(x => String(x.name).trim().toLowerCase() === k);
+  return p ? p.id : 0;
+}
 function newQuote() {
   return {
     id: 0, no: '', userName: '', customer: '', phone: '', addr: '', date: ymdNow(), validDays: 14,
-    items: [{ name: '', qty: 1, price: 0 }],
+    items: [blankQuoteItem()],
     discType: 'percent', discValue: 0, taxRate: Number(ST().tax_rate) || 0,
     note: DEFAULT_QUOTE_NOTE, dirty: false
   };
 }
 function quoteFromServer(d) {
-  const items = (d.items && d.items.length ? d.items : [{ name: '', qty: 1, price: 0 }]);
+  const items = (d.items && d.items.length ? d.items : [blankQuoteItem()]);
   return {
     id: d.id, no: d.quote_no, userName: d.user_name || '', customer: d.customer_name || '', phone: d.customer_phone || '', addr: d.customer_addr || '',
     date: d.date || ymdNow(), validDays: Number(d.valid_days) || 0,
-    items: items.map(l => ({ name: l.name || '', qty: Number(l.qty) || 0, price: Number(l.price) || 0 })),
+    items: items.map(l => ({ name: l.name || '', qty: Number(l.qty) || 0, price: Number(l.price) || 0, pid: quoteProdId(l.name) })),
     discType: d.discount_type === 'amount' ? 'amount' : 'percent', discValue: Number(d.discount_value) || 0, taxRate: Number(d.tax_rate) || 0,
     note: d.note || '', verifyCode: d.verify_code || '', dirty: false
   };
@@ -4275,12 +4289,54 @@ function renderQuoteValidTxt() {
 }
 function renderQuoteItems() {
   const tbody = $('#qItems tbody'); if (!tbody) { return; }
-  tbody.innerHTML = S.quote.items.map((l, i) => '<tr>' +
-    '<td><input type="text" list="qProdList" data-i="' + i + '" data-f="name" value="' + esc(l.name) + '" placeholder="Nama barang/jasa" style="width:100%;min-width:160px"></td>' +
+  tbody.innerHTML = S.quote.items.map((l, i) => {
+    const p = l.pid ? S.products.find(x => x.id === l.pid) : null;
+    const tag = p ? '<span class="badge ' + (p.type === 'jasa' ? 'brand' : '') + '">' + (p.type === 'jasa' ? 'Jasa' : 'Barang') + '</span>' : (l.name ? '<span class="badge warn" title="Nama ini tidak ada di data Produk. Klik untuk memilih ulang dari database.">Manual</span>' : '');
+    return '<tr>' +
+    '<td><button type="button" class="qpick' + (l.name ? '' : ' empty-pick') + '" data-act="quotePick" data-i="' + i + '" aria-label="Pilih barang atau jasa dari database"><span class="nm">' + (l.name ? esc(l.name) : 'Pilih barang/jasa…') + '</span>' + tag + '<span class="chev" aria-hidden="true">▾</span></button></td>' +
     '<td><input type="text" inputmode="numeric" class="money" data-i="' + i + '" data-f="qty" value="' + (l.qty ? moneyTxt(l.qty) : '') + '" placeholder="0" style="width:100%"></td>' +
     '<td><input type="text" inputmode="numeric" class="money" data-i="' + i + '" data-f="price" value="' + (l.price ? moneyTxt(l.price) : '') + '" placeholder="0" style="width:100%"></td>' +
     '<td class="num">' + rp((Number(l.qty) || 0) * (Number(l.price) || 0)) + '</td>' +
-    '<td><button type="button" class="btn btn-sm btn-ghost" data-act="quoteDelItem" data-i="' + i + '" aria-label="Hapus baris" title="Hapus baris">✕</button></td></tr>').join('');
+    '<td><button type="button" class="btn btn-sm btn-ghost" data-act="quoteDelItem" data-i="' + i + '" aria-label="Hapus baris" title="Hapus baris">✕</button></td></tr>';
+  }).join('');
+}
+/** Pemilih barang/jasa dari database Produk (S.products) untuk satu baris penawaran.
+    Memilih produk mengisi nama + harga satuan; qty & harga tetap bisa diubah di baris. */
+function quotePicker(idx) {
+  if (!S.quote || !S.quote.items[idx]) { return; }
+  let q = '', kind = 'all';
+  const m = openModal({
+    title: 'Pilih barang / jasa', size: 'wide',
+    body: '<input type="search" id="qpQ" placeholder="Cari nama / SKU / barcode / kategori…" aria-label="Cari produk" autocomplete="off">' +
+      '<div class="qp-chips" id="qpKind">' + [['all', 'Semua'], ['barang', 'Barang'], ['jasa', 'Jasa']].map(x => '<button type="button" class="chip" data-kind="' + x[0] + '" aria-pressed="' + (x[0] === 'all') + '">' + x[1] + '</button>').join('') + '</div>' +
+      '<div class="qp-list" id="qpList"></div>',
+    foot: '<button class="btn" data-close2>Batal</button>'
+  });
+  const draw = () => {
+    const k = q.trim().toLowerCase();
+    const list = S.products.filter(p => (kind === 'all' || (kind === 'jasa' ? p.type === 'jasa' : p.type !== 'jasa')) &&
+      (!k || (p.name + ' ' + p.sku + ' ' + p.barcode + ' ' + p.category).toLowerCase().includes(k)));
+    m.$('#qpList').innerHTML = list.length
+      ? list.slice(0, 200).map(p => {
+        const sub = [p.type === 'jasa' ? 'Jasa' : 'Barang', p.category, p.sku, p.type !== 'jasa' && p.track_stock ? 'Stok ' + int(p.stock) + ' ' + p.unit : ''].filter(Boolean).map(esc).join(' · ');
+        return '<button type="button" class="qp-item" data-id="' + p.id + '"><span class="main"><span class="nm">' + esc(p.name) + '</span><span class="sub">' + sub + '</span></span><span class="pr">' + rp(p.price) + '</span></button>';
+      }).join('') + (list.length > 200 ? '<div class="muted" style="padding:6px 2px;text-align:center">Menampilkan 200 dari ' + list.length + ' — persempit dengan pencarian.</div>' : '')
+      : '<div class="empty"><strong>Produk tidak ditemukan</strong>' + (S.products.length ? 'Coba kata kunci lain.' : 'Belum ada barang/jasa di database. ' + (S.user.role === 'admin' ? 'Tambahkan lewat menu Produk.' : 'Hubungi Kasir Admin.')) + '</div>';
+  };
+  m.$('#qpQ').oninput = e => { q = e.target.value; draw(); };
+  m.$('#qpKind').onclick = e => {
+    const b = e.target.closest('[data-kind]'); if (!b) { return; }
+    kind = b.dataset.kind; m.$$('#qpKind .chip').forEach(c => c.setAttribute('aria-pressed', String(c === b))); draw();
+  };
+  m.$('#qpList').onclick = e => {
+    const b = e.target.closest('.qp-item'); if (!b) { return; }
+    const p = S.products.find(x => x.id === Number(b.dataset.id)), l = S.quote && S.quote.items[idx];
+    if (!p || !l) { m.close(); return; }
+    l.name = p.name; l.price = Number(p.price) || 0; l.pid = p.id; if (!(Number(l.qty) > 0)) { l.qty = 1; }
+    markQuoteDirty(); renderQuoteItems(); renderQuoteTotals(); m.close();
+  };
+  m.$('[data-close2]').onclick = () => m.close();
+  draw();
 }
 function markQuoteDirty() { if (!S.quote.dirty) { S.quote.dirty = true; renderQuoteStatus(); } }
 function bindQuoteForm() {
@@ -4299,13 +4355,7 @@ function bindQuoteForm() {
   $('#qItems tbody').addEventListener('input', e => {
     const i = e.target.closest('input'); if (!i) { return; }
     const idx = Number(i.dataset.i), f = i.dataset.f, l = q.items[idx]; if (!l) { return; }
-    if (f === 'name') {
-      l.name = i.value;
-      if (!l.price) {
-        const p = S.products.find(x => x.name.toLowerCase() === i.value.trim().toLowerCase());
-        if (p) { l.price = p.price; const row = i.closest('tr'), pi = row.querySelector('[data-f="price"]'); if (pi) { pi.value = moneyTxt(p.price); } }
-      }
-    } else if (f === 'qty') { l.qty = moneyVal(i.value) || 0; i.value = l.qty ? moneyTxt(l.qty) : ''; }
+    if (f === 'qty') { l.qty = moneyVal(i.value) || 0; i.value = l.qty ? moneyTxt(l.qty) : ''; }
     else if (f === 'price') { l.price = moneyVal(i.value) || 0; i.value = l.price ? moneyTxt(l.price) : ''; }
     renderQuoteRowSubtotal(idx); renderQuoteTotals();
   });
@@ -4343,8 +4393,8 @@ function viewPenawaran() {
     '<label class="field"><span>Berlaku selama (hari)</span><input id="qValid" type="text" inputmode="numeric" value="' + (q.validDays ? moneyTxt(q.validDays) : '') + '"></label></div>' +
     '<p class="muted" id="qValidTxt" style="margin:-6px 0 0"></p></div></div>' +
     '<div class="card" style="margin-bottom:14px"><div class="card-head"><h2>Daftar Barang / Jasa</h2><button type="button" class="btn btn-sm" data-act="quoteAddItem">+ Tambah item</button></div>' +
-    '<div class="tscroll"><table class="t" id="qItems"><thead><tr><th style="min-width:180px">Nama barang/jasa</th><th style="width:80px">Qty</th><th style="width:130px">Harga satuan</th><th class="num" style="width:130px">Subtotal</th><th style="width:40px"></th></tr></thead><tbody></tbody></table></div>' +
-    '<datalist id="qProdList">' + S.products.map(p => '<option value="' + esc(p.name) + '">').join('') + '</datalist></div>' +
+    '<div class="tscroll"><table class="t" id="qItems"><thead><tr><th style="min-width:180px">Nama barang/jasa</th><th style="width:80px;min-width:72px">Qty</th><th style="width:130px;min-width:112px">Harga satuan</th><th class="num" style="width:130px;min-width:112px">Subtotal</th><th style="width:40px"></th></tr></thead><tbody></tbody></table></div>' +
+    '<p class="muted" style="margin:0;padding:10px 16px 14px;font-size:13px">Barang/jasa dipilih dari data Produk. Harga satuan terisi otomatis dan masih bisa diubah khusus untuk penawaran ini.</p></div>' +
     '<div class="card" style="margin-bottom:14px"><div class="card-head"><h2>Diskon &amp; Pajak</h2></div><div class="card-body">' +
     '<div class="grid2"><div class="field"><span>Diskon</span><div class="disc-ctl" style="margin-left:0"><select id="qDiscType" aria-label="Jenis diskon"><option value="percent">%</option><option value="amount">Rp</option></select>' +
     '<input id="qDiscVal" type="text" inputmode="numeric" class="money" placeholder="0"></div></div>' +
@@ -5671,8 +5721,9 @@ Object.assign(ACT,{serviceNew(){serviceForm();},serviceEdit(t){run(t,async()=>se
 Object.assign(ACT, {
   quoteReset() { leaveQuoteOk().then(y => { if (y) { S.quote = newQuote(); S.quoteTab = 'form'; viewPenawaran(); } }); },
   quoteTab(t) { S.quoteTab = t.dataset.tab === 'list' ? 'list' : 'form'; viewPenawaran(); },
-  quoteAddItem() { S.quote.items.push({ name: '', qty: 1, price: 0 }); markQuoteDirty(); renderQuoteItems(); renderQuoteTotals(); const ins = $('#qItems tbody tr:last-child input'); if (ins) { ins.focus(); } },
-  quoteDelItem(t) { const i = Number(t.dataset.i); S.quote.items.splice(i, 1); if (!S.quote.items.length) { S.quote.items.push({ name: '', qty: 1, price: 0 }); } markQuoteDirty(); renderQuoteItems(); renderQuoteTotals(); },
+  quoteAddItem() { S.quote.items.push(blankQuoteItem()); markQuoteDirty(); renderQuoteItems(); renderQuoteTotals(); quotePicker(S.quote.items.length - 1); },
+  quotePick(t) { quotePicker(Number(t.dataset.i)); },
+  quoteDelItem(t) { const i = Number(t.dataset.i); S.quote.items.splice(i, 1); if (!S.quote.items.length) { S.quote.items.push(blankQuoteItem()); } markQuoteDirty(); renderQuoteItems(); renderQuoteTotals(); },
   quoteSave(t) { run(t, () => saveQuote(false)); },
   quotePreview(t) { run(t, () => showQuotePreview()); },
   quoteOpen(t) {
