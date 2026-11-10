@@ -1958,6 +1958,7 @@ function receiptHtml(t, width) {
   h += '<hr class="r-sep solid">' + row('TOTAL', int(t.grand_total), 'r-total') + '<hr class="r-sep">' +
     row('Bayar (' + esc(PAY[t.method] || t.method) + ')', int(t.amount_paid));
   if (t.method === 'cash') { h += row('Kembali', int(t.change)); }
+  h += '<hr class="r-sep"><div class="pre"><b>Syarat &amp; Ketentuan:</b><br>Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain. Ketentuan lengkap tercantum pada invoice.</div>';
   if (t.note) { h += '<hr class="r-sep"><div class="pre"><b>Catatan:</b><br>' + esc(t.note) + '</div>'; }
   return h + '<hr class="r-sep"><div class="r-center">' + esc(s.receipt_footer) + '</div></div>';
 }
@@ -2045,7 +2046,13 @@ function invoiceHtml(t) {
   const kv = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : '';
   const paid = Math.min(t.amount_paid, t.grand_total);
   const showSub = t.tax_amount > 0 || (t.discount_type === 'amount' && t.discount_amount > 0);
-  const noteHtml = t.note ? '<div class="inv-note"><b>Catatan / Keterangan:</b><p>' + esc(t.note).replace(/\n/g, '<br>') + '</p></div>' : '';
+  const invoiceTerms = [
+    'Invoice ini merupakan bukti transaksi dengan status pembayaran sebagaimana tercantum pada dokumen.',
+    'Sisa tagihan, jika ada, wajib dilunasi sesuai kesepakatan.',
+    'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain.',
+    'Untuk transaksi di atas Rp5.000.000, ketentuan DP minimal 50% berlaku sesuai kesepakatan.'
+  ];
+  const noteHtml = '<div class="inv-note"><b>Catatan / Syarat &amp; Ketentuan:</b><ol>' + invoiceTerms.map(l => '<li>' + esc(l) + '</li>').join('') + '</ol>' + (t.note ? '<p><b>Catatan transaksi:</b><br>' + esc(t.note).replace(/\n/g, '<br>') + '</p>' : '') + '</div>';
   let tot = '<div class="row big"><b>Total</b><b>' + rpi(t.grand_total) + '</b></div>';
   if (showSub) {
     tot = '<div class="row"><span>Subtotal</span><span>' + rpi(pct > 0 ? t.subtotal - t.discount_amount : t.subtotal) + '</span></div>' +
