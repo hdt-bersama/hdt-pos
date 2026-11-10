@@ -1959,6 +1959,7 @@ function receiptHtml(t, width) {
     row('Bayar (' + esc(PAY[t.method] || t.method) + ')', int(t.amount_paid));
   if (t.method === 'cash') { h += row('Kembali', int(t.change)); }
   h += '<hr class="r-sep"><div class="pre"><b>Syarat &amp; Ketentuan:</b><br>Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain. Ketentuan lengkap tercantum pada invoice.</div>';
+  if (s.invoice_terms) { h += '<hr class="r-sep"><div class="pre"><b>Syarat &amp; Ketentuan:</b><br>' + esc(s.invoice_terms).replace(/\n/g, '<br>') + '</div>'; }
   if (t.note) { h += '<hr class="r-sep"><div class="pre"><b>Catatan:</b><br>' + esc(t.note) + '</div>'; }
   return h + '<hr class="r-sep"><div class="r-center">' + esc(s.receipt_footer) + '</div></div>';
 }
@@ -2046,13 +2047,8 @@ function invoiceHtml(t) {
   const kv = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : '';
   const paid = Math.min(t.amount_paid, t.grand_total);
   const showSub = t.tax_amount > 0 || (t.discount_type === 'amount' && t.discount_amount > 0);
-  const invoiceTerms = [
-    'Invoice ini merupakan bukti transaksi dengan status pembayaran sebagaimana tercantum pada dokumen.',
-    'Sisa tagihan, jika ada, wajib dilunasi sesuai kesepakatan.',
-    'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain.',
-    'Untuk transaksi di atas Rp5.000.000, ketentuan DP minimal 50% berlaku sesuai kesepakatan.'
-  ];
-  const noteHtml = '<div class="inv-note"><b>Catatan / Syarat &amp; Ketentuan:</b><ol>' + invoiceTerms.map(l => '<li>' + esc(l) + '</li>').join('') + '</ol>' + (t.note ? '<p><b>Catatan transaksi:</b><br>' + esc(t.note).replace(/\n/g, '<br>') + '</p>' : '') + '</div>';
+  const invoiceTerms = String(s.invoice_terms || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const noteHtml = (invoiceTerms.length || t.note) ? '<div class="inv-note">' + (invoiceTerms.length ? '<b>Catatan / Syarat &amp; Ketentuan:</b><ol>' + invoiceTerms.map(l => '<li>' + esc(l) + '</li>').join('') + '</ol>' : '') + (t.note ? '<p><b>Catatan transaksi:</b><br>' + esc(t.note).replace(/\n/g, '<br>') + '</p>' : '') + '</div>' : '';
   let tot = '<div class="row big"><b>Total</b><b>' + rpi(t.grand_total) + '</b></div>';
   if (showSub) {
     tot = '<div class="row"><span>Subtotal</span><span>' + rpi(pct > 0 ? t.subtotal - t.discount_amount : t.subtotal) + '</span></div>' +
@@ -3352,6 +3348,8 @@ function viewPengaturan() {
       '<p class="page-note">Nomor invoice berikutnya: <b id="invPrev"></b> <span class="muted">(format TAHUN-KODE-URUTAN, urutan kembali ke 1 tiap tahun baru)</span></p>' +
       '<div class="grid3">' + f('sBank', 'Nama bank', s.bank_name, 'BANK MANDIRI') + f('sAcc', 'No. rekening', s.bank_account) + f('sHolder', 'Atas nama', s.bank_holder, 'HARIS') + '</div>' +
       '<small class="muted">Rekening hanya dicetak pada invoice dengan pembayaran transfer.</small></div></div>' +
+    '<div class="card"><div class="card-head"><h2>Syarat &amp; Ketentuan Invoice</h2></div><div class="card-body">' +
+      '<label class="field"><span>Daftar syarat &amp; ketentuan (satu poin per baris)</span><textarea id="sInvoiceTerms" rows="7" maxlength="3000" placeholder="Masukkan satu ketentuan per baris">' + esc(s.invoice_terms || '') + '</textarea><small>Ditampilkan otomatis pada invoice dan struk. Kosongkan jika tidak ingin menampilkan syarat dan ketentuan.</small></label></div></div>' +
     '<div class="card"><div class="card-head"><h2>Pembayaran QRIS</h2></div><div class="card-body"><p class="muted" style="margin:0 0 12px">Unggah gambar QRIS toko (JPG / PNG). Gambar ini tampil di layar kasir saat pelanggan membayar dengan QRIS.</p><div class="logo-box" id="qrisBox"></div>' +
       '<p class="page-note" style="margin:12px 0 0">Ini QRIS <b>statis</b>: pelanggan mengetik nominal sendiri, jadi kasir perlu memastikan dana masuk sebelum menekan konfirmasi. Konfirmasi otomatis membutuhkan integrasi API penyedia QRIS.</p></div></div>' +
     '<div class="card"><div class="card-head"><h2>Kasir & struk</h2></div><div class="card-body"><div class="grid3">' +
@@ -3446,6 +3444,7 @@ Object.assign(ACT, {
         store_name: $('#sName').value, store_address: $('#sAddr').value, store_phone: $('#sPhone').value, store_email: $('#sEmail').value, tax_no: $('#sTax').value,
         inv_code: $('#sCode').value, inv_next: moneyVal($('#sNext').value), bank_name: $('#sBank').value, bank_account: $('#sAcc').value, bank_holder: $('#sHolder').value,
         tax_rate: String($('#sTaxRate').value).replace(',', '.'), paper_width: Number($('#sPaper').value), receipt_footer: $('#sFoot').value,
+        invoice_terms: $('#sInvoiceTerms').value,
         show_logo_on_receipt: $('#sLogoRc').checked, auto_print: $('#sAuto').checked
       });
       await warmLogo(); S.paper = S.settings.paper_width; store.set('hdt_paper', S.paper); markStale(); refreshBrand(); viewPengaturan(); toast('Pengaturan disimpan.', 'ok');
