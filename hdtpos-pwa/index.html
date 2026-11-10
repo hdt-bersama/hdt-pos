@@ -3642,6 +3642,7 @@ function receiptHtml(t, width) {
   h += '<hr class="r-sep solid">' + row('TOTAL', int(t.grand_total), 'r-total') + '<hr class="r-sep">' +
     row('Bayar (' + esc(PAY[t.method] || t.method) + ')', int(t.amount_paid));
   if (t.method === 'cash') { h += row('Kembali', int(t.change)); }
+  if (t.note) { h += '<hr class="r-sep"><div class="pre"><b>Catatan:</b><br>' + esc(t.note) + '</div>'; }
   return h + '<hr class="r-sep"><div class="r-center">' + esc(s.receipt_footer) + '</div></div>';
 }
 function printReceipt(t) { return printThermal('sale', t, S.paper); }
@@ -3787,6 +3788,7 @@ async function escReceipt(t, paper) {
   p.sep('=').bold(1).size(0x01).lr('TOTAL', int(t.grand_total)).size(0).bold(0).sep()
     .lr('Bayar (' + (PAY[t.method] || t.method) + ')', int(t.amount_paid));
   if (t.method === 'cash') { p.lr('Kembali', int(t.change)); }
+  if (t.note) { p.sep().bold(1).ln('Catatan:').bold(0).lines(t.note); }
   p.sep().center().lines(s.receipt_footer || '').left();
   return p.feed(4).cut().bytes();
 }
@@ -4084,6 +4086,7 @@ function invoiceHtml(t) {
   const kv = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : '';
   const paid = Math.min(t.amount_paid, t.grand_total);
   const showSub = t.tax_amount > 0 || (t.discount_type === 'amount' && t.discount_amount > 0);
+  const noteHtml = t.note ? '<div class="inv-note"><b>Catatan / Keterangan:</b><p>' + esc(t.note).replace(/\n/g, '<br>') + '</p></div>' : '';
   let tot = '<div class="row big"><b>Total</b><b>' + rpi(t.grand_total) + '</b></div>';
   if (showSub) {
     tot = '<div class="row"><span>Subtotal</span><span>' + rpi(pct > 0 ? t.subtotal - t.discount_amount : t.subtotal) + '</span></div>' +
@@ -4103,7 +4106,7 @@ function invoiceHtml(t) {
     '<div class="row"><span>' + (PAY_EN[t.method] || t.method) + ':</span><span>' + rpi(t.method === 'cash' ? t.amount_paid : t.grand_total) + '</span></div>' +
     '<div class="row b"><span>Paid amount:</span><span>' + rpi(paid) + '</span></div>' +
     (t.method === 'cash' && t.change > 0 ? '<div class="row"><span>Change:</span><span>' + rpi(t.change) + '</span></div>' : '') +
-    '<div class="row b"><span>Amount due:</span><span>' + rpi(Math.max(0, t.grand_total - paid)) + '</span></div></div>' +
+    '<div class="row b"><span>Amount due:</span><span>' + rpi(Math.max(0, t.grand_total - paid)) + '</span></div></div>' + noteHtml +
     '<div class="inv-sign"><div>Hormat kami,</div>' + (stampHtml('v', t.invoice_no, t.verify_code) || '<div class="sp"></div>') + '<div class="nm">' + esc(t.cashier) + '</div></div></div>' +
     '<div class="inv-foot"><span>Created with HDT POS</span><span>' + (lines.length <= 9 ? 'Page 1' : '') + '</span></div></div>';
 }
