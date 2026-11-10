@@ -2405,6 +2405,8 @@ function createBackend_(P) {
     var c = db.all('Customers').filter(function (x) { return x.id === t.customer_id; })[0];
     if (c) { t.customer = c.name; t.customer_addr = c.address; }
     t.verify_code = verifyCode(t);
+    // Ambil ketentuan terbaru langsung dari penyimpanan Settings saat invoice dibuka.
+    t.invoice_terms = loadSettings().invoice_terms || '';
     return t;
   } };
   /* Verifikasi cap QR invoice -- PUBLIK (tanpa login): dipanggil halaman yang terbuka saat
@@ -4091,7 +4093,7 @@ function invoiceHtml(t) {
   const kv = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : '';
   const paid = Math.min(t.amount_paid, t.grand_total);
   const showSub = t.tax_amount > 0 || (t.discount_type === 'amount' && t.discount_amount > 0);
-  const invoiceTerms = String(s.invoice_terms || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const invoiceTerms = String(t.invoice_terms !== undefined ? t.invoice_terms : (s.invoice_terms || '')).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const noteHtml = (invoiceTerms.length || t.note) ? '<div class="inv-note">' + (invoiceTerms.length ? '<b>Catatan / Syarat &amp; Ketentuan:</b><ol>' + invoiceTerms.map(l => '<li>' + esc(l) + '</li>').join('') + '</ol>' : '') + (t.note ? '<p><b>Catatan transaksi:</b><br>' + esc(t.note).replace(/\n/g, '<br>') + '</p>' : '') + '</div>' : '';
   let tot = '<div class="row big"><b>Total</b><b>' + rpi(t.grand_total) + '</b></div>';
   if (showSub) {
