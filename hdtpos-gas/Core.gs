@@ -33,7 +33,7 @@ var SETTING_DEFAULTS = {
   store_name: 'HDT POS', store_address: '', store_phone: '', store_email: '', store_website: '', tax_no: '',
   bank_name: '', bank_account: '', bank_holder: '',
   tax_rate: '0', paper_width: '80', receipt_footer: 'Terima kasih atas kunjungan Anda.',
-  invoice_terms: 'Invoice ini merupakan bukti transaksi dengan status pembayaran sebagaimana tercantum pada dokumen.\\nSisa tagihan, jika ada, wajib dilunasi sesuai kesepakatan.\\nBarang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain.\\nUntuk transaksi di atas Rp5.000.000, ketentuan DP minimal 50% berlaku sesuai kesepakatan.',
+  invoice_terms: 'Invoice ini merupakan bukti transaksi dengan status pembayaran sebagaimana tercantum pada dokumen.\nSisa tagihan, jika ada, wajib dilunasi sesuai kesepakatan.\nBarang yang sudah dibeli tidak dapat ditukar atau dikembalikan, kecuali ada kesepakatan lain.\nUntuk transaksi di atas Rp5.000.000, ketentuan DP minimal 50% berlaku sesuai kesepakatan.',
   show_logo_on_receipt: '1', auto_print: '0', inv_code: '200', inv_year: '', inv_next: '1'
 };
 
