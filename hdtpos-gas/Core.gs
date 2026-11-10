@@ -340,6 +340,8 @@ function createBackend_(P) {
     var c = db.all('Customers').filter(function (x) { return x.id === t.customer_id; })[0];
     if (c) { t.customer = c.name; t.customer_addr = c.address; }
     t.verify_code = verifyCode(t);
+    // Ambil ketentuan terbaru langsung dari penyimpanan Settings saat invoice dibuka.
+    t.invoice_terms = loadSettings().invoice_terms || '';
     return t;
   } };
   /* Verifikasi cap QR invoice -- PUBLIK (tanpa login): dipanggil halaman yang terbuka saat
