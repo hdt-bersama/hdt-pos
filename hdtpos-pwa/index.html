@@ -321,10 +321,15 @@ table.t{ width:100%; border-collapse:collapse; font-size:14px; }
 .inv-stamp b{ display:block; font-size:9pt; letter-spacing:.14em; } .inv-stamp i{ display:block; margin:.6mm 0 1.2mm; font-size:7.2pt; font-style:normal; line-height:1.3; } .inv-stamp code{ font:700 7.4pt Consolas,"Courier New",monospace; }
 /* materai: cetak 1 (m-nocap) = invoice tanpa cap, ruang cap dibiarkan kosong; cetak 2 (m-caponly) = hanya cap, posisi sama persis karena tata letaknya identik */
 .inv-sign{ position:relative; }
-.inv-matguide{ position:absolute; left:3mm; top:9mm; width:30mm; height:20mm; display:flex; align-items:center; justify-content:center; text-align:center; font-size:6.5pt; line-height:1.2; color:#999; border:.3mm dashed #aaa; transform:rotate(-2deg); }
+.inv-matguide{ position:absolute; left:24mm; top:5mm; width:30mm; height:20mm; display:flex; align-items:center; justify-content:center; text-align:center; font-size:6.5pt; line-height:1.2; color:#999; border:.3mm dashed #aaa; }
+/* bila ada cap: kotak materai di dalam cap, di sisi kanan (area teks) agar QR tetap bisa discan */
+.inv-stamp .inv-matguide{ left:auto; right:3mm; top:50%; margin-top:-10mm; color:transparent; }   /* di pratinjau cukup kotaknya, agar tidak menumpuk teks cap */
+.inv.m-nocap .inv-stamp .inv-matguide{ color:#999; }
 .inv.m-nocap .inv-stamp{ visibility:hidden; }
+.inv.m-nocap .inv-stamp .inv-matguide{ visibility:visible; }
 .inv.m-caponly *{ visibility:hidden; }
 .inv.m-caponly .inv-stamp,.inv.m-caponly .inv-stamp *{ visibility:visible; }
+.inv.m-caponly .inv-stamp .inv-matguide{ visibility:hidden; }
 .verify{ flex:1; display:flex; justify-content:center; align-items:flex-start; padding:20px 14px 40px; }
 .verify-card{ width:100%; max-width:440px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
 .verify-head{ padding:18px 20px 0; } .verify-head small{ display:block; color:var(--muted); } .verify-head strong{ font-size:19px; }
@@ -4089,6 +4094,7 @@ const warmLogo = () => trimmedSrc(ST().store_logo);
 /** o.mat = tampilkan kotak panduan materai; o.mode = 'nocap' (cetak 1: tanpa cap) | 'caponly' (cetak 2: hanya cap). Tata letak sama di semua mode. */
 function invoiceHtml(t, o) {
   o = o || {};
+  const guide = o.mat ? '<div class="inv-matguide">Tempel<br>materai</div>' : '';
   const s = ST(), logo = LOGO();
   const lines = t.items.map(i => ({ name: i.name, qty: i.qty, price: i.price, total: i.subtotal }));
   const pct = t.discount_type === 'percent' ? t.discount_value : 0;
@@ -4125,7 +4131,7 @@ function invoiceHtml(t, o) {
     '<div class="row b"><span>Paid amount:</span><span>' + rpi(paid) + '</span></div>' +
     (t.method === 'cash' && t.change > 0 ? '<div class="row"><span>Change:</span><span>' + rpi(t.change) + '</span></div>' : '') +
     '<div class="row b"><span>Amount due:</span><span>' + rpi(Math.max(0, t.grand_total - paid)) + '</span></div></div>' + noteHtml +
-    '<div class="inv-sign"><div>Hormat kami,</div>' + (o.mat ? '<div class="inv-matguide">Tempel<br>materai</div>' : '') + (stampHtml('v', t.invoice_no, t.verify_code) || '<div class="sp"></div>') + '<div class="nm">' + esc(t.cashier) + '</div></div></div>' +
+    '<div class="inv-sign"><div>Hormat kami,</div>' + (stampHtml('v', t.invoice_no, t.verify_code, guide) || (guide + '<div class="sp"></div>')) + '<div class="nm">' + esc(t.cashier) + '</div></div></div>' +
     '<div class="inv-foot"><span>Created with HDT POS</span><span>' + (lines.length <= 9 ? 'Page 1' : '') + '</span></div></div>';
 }
 /* ---------- cap digital QR pada invoice & penawaran harga ---------- */
@@ -4140,10 +4146,10 @@ function qrSvg(text) {
   } catch (e) { return ''; }
 }
 /** Cap hanya dicetak bila server sudah memberi kode pengaman (dokumen sudah tersinkron ke server). */
-function stampHtml(kind, no, code) {
+function stampHtml(kind, no, code, extra) {
   if (!no || !code || !/^https?:$/.test(location.protocol)) { return ''; }
   const svg = qrSvg(verifyUrl(kind, no, code));
-  return svg ? '<div class="inv-stamp">' + svg + '<div><b>CAP DIGITAL</b><i>Dokumen sah. Scan untuk<br>verifikasi keaslian.</i><code>' + esc(no) + '</code></div></div>' : '';
+  return svg ? '<div class="inv-stamp">' + svg + '<div><b>CAP DIGITAL</b><i>Dokumen sah. Scan untuk<br>verifikasi keaslian.</i><code>' + esc(no) + '</code></div>' + (extra || '') + '</div>' : '';
 }
 const NO_STAMP_NOTE = '<p class="page-note" style="margin:0 0 10px">Cap QR belum bisa dicetak karena dokumen ini belum tersinkron ke server. Buka lagi saat online untuk mencetak dengan cap QR.</p>';
 /** Transaksi dengan total sebesar ini atau lebih otomatis memakai materai (ubah ke ">" di invoiceNeedsMaterai bila aturannya "lebih dari"). */
