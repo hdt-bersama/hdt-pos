@@ -319,6 +319,12 @@ table.t{ width:100%; border-collapse:collapse; font-size:14px; }
 .inv-stamp{ display:inline-flex; align-items:center; gap:3mm; margin:2mm 0 3mm; padding:2mm 3mm 2mm 2mm; text-align:left; color:#2340b4; border:.9mm double #2340b4; border-radius:1.5mm; transform:rotate(-2deg); }
 .inv-stamp svg{ flex:none; display:block; width:24mm; height:24mm; }
 .inv-stamp b{ display:block; font-size:9pt; letter-spacing:.14em; } .inv-stamp i{ display:block; margin:.6mm 0 1.2mm; font-size:7.2pt; font-style:normal; line-height:1.3; } .inv-stamp code{ font:700 7.4pt Consolas,"Courier New",monospace; }
+/* materai: cetak 1 (m-nocap) = invoice tanpa cap, ruang cap dibiarkan kosong; cetak 2 (m-caponly) = hanya cap, posisi sama persis karena tata letaknya identik */
+.inv-sign{ position:relative; }
+.inv-matguide{ position:absolute; left:3mm; top:9mm; width:30mm; height:20mm; display:flex; align-items:center; justify-content:center; text-align:center; font-size:6.5pt; line-height:1.2; color:#999; border:.3mm dashed #aaa; transform:rotate(-2deg); }
+.inv.m-nocap .inv-stamp{ visibility:hidden; }
+.inv.m-caponly *{ visibility:hidden; }
+.inv.m-caponly .inv-stamp,.inv.m-caponly .inv-stamp *{ visibility:visible; }
 .verify{ flex:1; display:flex; justify-content:center; align-items:flex-start; padding:20px 14px 40px; }
 .verify-card{ width:100%; max-width:440px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
 .verify-head{ padding:18px 20px 0; } .verify-head small{ display:block; color:var(--muted); } .verify-head strong{ font-size:19px; }
@@ -3590,12 +3596,13 @@ function confirmBox(o) {
 }
 
 /* ---------- cetak (struk, invoice, laporan) ---------- */
+/** Mengembalikan Promise yang selesai saat dialog cetak ditutup (pemanggil lama boleh mengabaikannya). */
 function printDoc(html, pageCss) {
   const root = $('#printRoot');
   root.innerHTML = html;
   $('#pageStyle').textContent = '@page{' + pageCss + '}';
   const imgs = $$('img', root).filter(i => !i.complete).map(i => new Promise(r => { i.onload = i.onerror = r; }));
-  Promise.race([Promise.all(imgs), new Promise(r => setTimeout(r, 1500))]).then(() => {
+  return Promise.race([Promise.all(imgs), new Promise(r => setTimeout(r, 1500))]).then(() => new Promise(finish => {
     document.body.classList.add('printing');
     let closed = false, safety;
     const done = () => {
@@ -3605,6 +3612,7 @@ function printDoc(html, pageCss) {
       document.body.classList.remove('printing'); root.innerHTML = '';
       window.removeEventListener('afterprint', done);
       window.removeEventListener('focus', onFocus);
+      finish();
     };
     const onFocus = () => setTimeout(done, 300);
     window.addEventListener('afterprint', done);
@@ -3615,7 +3623,7 @@ function printDoc(html, pageCss) {
     safety = setTimeout(done, 6000);
     try { window.print(); }
     catch (e) { done(); toast('Browser memblokir cetak. Buka aplikasi di tab sendiri lalu coba lagi.', 'err'); }
-  });
+  }));
 }
 
 /* ---------- pengaturan yang dipakai banyak tempat ---------- */
@@ -4078,7 +4086,9 @@ const LOGO = () => { const l = ST().store_logo; return l ? (TRIM[l] || l) : ''; 
 const warmLogo = () => trimmedSrc(ST().store_logo);
 
 /* ---------- invoice A4 (mengikuti contoh PDF) ---------- */
-function invoiceHtml(t) {
+/** o.mat = tampilkan kotak panduan materai; o.mode = 'nocap' (cetak 1: tanpa cap) | 'caponly' (cetak 2: hanya cap). Tata letak sama di semua mode. */
+function invoiceHtml(t, o) {
+  o = o || {};
   const s = ST(), logo = LOGO();
   const lines = t.items.map(i => ({ name: i.name, qty: i.qty, price: i.price, total: i.subtotal }));
   const pct = t.discount_type === 'percent' ? t.discount_value : 0;
@@ -4101,7 +4111,7 @@ function invoiceHtml(t) {
       (t.discount_type === 'amount' && t.discount_amount > 0 ? '<div class="row"><span>Discount</span><span>-' + rpi(t.discount_amount) + '</span></div>' : '') +
       (t.tax_amount > 0 ? '<div class="row"><span>Tax (' + nf2.format(t.tax_rate) + '%)</span><span>' + rpi(t.tax_amount) + '</span></div>' : '') + tot;
   }
-  return '<div class="inv">' +
+  return '<div class="inv' + (o.mode ? ' m-' + o.mode : '') + '">' +
     '<div class="inv-head"><div><h1>INVOICE</h1><h2>' + esc(s.store_name) + '</h2>' +
     (s.store_address ? '<p class="addr">' + esc(s.store_address) + '</p>' : '') +
     '<table class="kv">' + kv('Tax No.:', s.tax_no) + kv('Phone:', s.store_phone) + kv('Email:', s.store_email) + kv('Website:', s.store_website) + '</table></div>' +
@@ -4115,7 +4125,7 @@ function invoiceHtml(t) {
     '<div class="row b"><span>Paid amount:</span><span>' + rpi(paid) + '</span></div>' +
     (t.method === 'cash' && t.change > 0 ? '<div class="row"><span>Change:</span><span>' + rpi(t.change) + '</span></div>' : '') +
     '<div class="row b"><span>Amount due:</span><span>' + rpi(Math.max(0, t.grand_total - paid)) + '</span></div></div>' + noteHtml +
-    '<div class="inv-sign"><div>Hormat kami,</div>' + (stampHtml('v', t.invoice_no, t.verify_code) || '<div class="sp"></div>') + '<div class="nm">' + esc(t.cashier) + '</div></div></div>' +
+    '<div class="inv-sign"><div>Hormat kami,</div>' + (o.mat ? '<div class="inv-matguide">Tempel<br>materai</div>' : '') + (stampHtml('v', t.invoice_no, t.verify_code) || '<div class="sp"></div>') + '<div class="nm">' + esc(t.cashier) + '</div></div></div>' +
     '<div class="inv-foot"><span>Created with HDT POS</span><span>' + (lines.length <= 9 ? 'Page 1' : '') + '</span></div></div>';
 }
 /* ---------- cap digital QR pada invoice & penawaran harga ---------- */
@@ -4136,14 +4146,36 @@ function stampHtml(kind, no, code) {
   return svg ? '<div class="inv-stamp">' + svg + '<div><b>CAP DIGITAL</b><i>Dokumen sah. Scan untuk<br>verifikasi keaslian.</i><code>' + esc(no) + '</code></div></div>' : '';
 }
 const NO_STAMP_NOTE = '<p class="page-note" style="margin:0 0 10px">Cap QR belum bisa dicetak karena dokumen ini belum tersinkron ke server. Buka lagi saat online untuk mencetak dengan cap QR.</p>';
+/** Transaksi dengan total sebesar ini atau lebih otomatis memakai materai (ubah ke ">" di invoiceNeedsMaterai bila aturannya "lebih dari"). */
+const MATERAI_MIN = 5000000;
+const invoiceNeedsMaterai = t => Number(t.grand_total) >= MATERAI_MIN;
 async function showInvoice(id) {
   const t = await api('invoiceGet', { id });
   await warmLogo();
   const m = openModal({
     title: 'Invoice ' + t.invoice_no, size: 'xl',
-    body: '<p class="muted" style="margin:0 0 10px">Klik <b>Cetak / Simpan PDF</b>, lalu pilih printer — atau pilih tujuan <b>Save as PDF</b> untuk menyimpannya sebagai file PDF.</p>' + (t.verify_code ? '' : NO_STAMP_NOTE) + '<div class="inv-scale" id="invBox"><div id="invInner">' + invoiceHtml(t) + '</div></div>',
+    body: '<p class="muted" style="margin:0 0 10px">Klik <b>Cetak / Simpan PDF</b>, lalu pilih printer — atau pilih tujuan <b>Save as PDF</b> untuk menyimpannya sebagai file PDF.</p>' + (t.verify_code ? '' : NO_STAMP_NOTE) +
+      '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:600"><input type="checkbox" id="invMat"> Gunakan materai</label>' +
+      '<p class="page-note" id="invMatNote" style="display:none"></p>' +
+      '<div class="inv-scale" id="invBox"><div id="invInner">' + invoiceHtml(t) + '</div></div>',
     foot: '<button class="btn" data-close2>Tutup</button><button class="btn btn-primary" id="invPrint">Cetak / Simpan PDF</button>'
   });
+  const matBox = m.$('#invMat'), matNote = m.$('#invMatNote');
+  const hasStamp = !!(t.verify_code && /^https?:$/.test(location.protocol));
+  const showNote = txt => { matNote.style.display = txt ? '' : 'none'; matNote.innerHTML = txt || ''; };
+  const refreshMat = () => {
+    m.$('#invInner').innerHTML = invoiceHtml(t, { mat: matBox.checked });
+    showNote(matBox.checked
+      ? (hasStamp ? 'Dengan materai, pencetakan <b>2 tahap</b>: (1) invoice tanpa cap → tempel materai → (2) cetak cap saja agar menimpa materai.'
+                  : 'Dengan materai: invoice dicetak dengan ruang kosong untuk materai. Cap QR belum tersedia (dokumen belum tersinkron / aplikasi tidak dibuka lewat http/https).')
+      : '');
+  };
+  matBox.onchange = refreshMat;
+  if (invoiceNeedsMaterai(t)) {
+    matBox.checked = true; refreshMat();
+    showNote('<b>Materai dicentang otomatis</b>: total ' + rpi(t.grand_total) + ' mencapai ' + rpi(MATERAI_MIN) + '. Cabut centang bila tidak diperlukan.<br>' + matNote.innerHTML);
+    toast('Total ' + rpi(t.grand_total) + ' — materai dicentang otomatis.');
+  }
   const fit = () => {
     const box = m.$('#invBox'), inner = m.$('#invInner'); if (!box || !inner) { return; }
     const sc = Math.min(1, (box.clientWidth - 24) / 794);
@@ -4152,7 +4184,20 @@ async function showInvoice(id) {
   };
   setTimeout(fit, 20);
   m.$('[data-close2]').onclick = () => m.close();
-  m.$('#invPrint').onclick = () => printDoc(invoiceHtml(t), 'size:A4;margin:0');
+  m.$('#invPrint').onclick = async e => {
+    const css = 'size:A4;margin:0';
+    if (!matBox.checked) { printDoc(invoiceHtml(t), css); return; }
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      await printDoc(invoiceHtml(t, { mat: true, mode: 'nocap' }), css);          // cetak 1: invoice tanpa cap
+      if (!hasStamp) { return; }
+      const ok = await confirmBox({
+        title: 'Cetak 1 selesai', ok: 'Cetak Cap',
+        message: 'Tempel <b>materai</b> pada kotak panduan di area tanda tangan, lalu masukkan <b>kertas yang sama</b> kembali ke printer (sisi dan arah sama). Klik <b>Cetak Cap</b> untuk mencetak cap saja agar menimpa materai.'
+      });
+      if (ok) { await printDoc(invoiceHtml(t, { mat: true, mode: 'caponly' }), css); }   // cetak 2: hanya cap
+    } finally { btn.disabled = false; }
+  };
 }
 
 /* =====================================================================
