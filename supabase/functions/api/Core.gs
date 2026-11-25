@@ -351,7 +351,7 @@ function createBackend_(P) {
     var s = loadSettings();
     var c = t.customer_id > 0 ? db.all('Customers').filter(function (x) { return x.id === t.customer_id; })[0] : null;
     return {
-      store_name: s.store_name, store_phone: s.store_phone,
+      store_name: s.store_name, store_phone: s.store_phone, store_logo: s.store_logo,
       invoice_no: t.invoice_no, date: t.date, customer: c ? c.name : t.customer_name, cashier: t.user_name,
       method: t.method, status: t.status,
       items: db.all('TxItems').filter(function (i) { return i.tx_id === t.id; }).map(function (i) { return { name: i.name, qty: i.qty, price: i.price, subtotal: i.subtotal }; }),
@@ -425,7 +425,7 @@ function createBackend_(P) {
     if (!x) { fail('Penawaran tidak ditemukan atau kode verifikasi tidak cocok.', 'NOTFOUND'); }
     var s = loadSettings();
     return {
-      store_name: s.store_name, store_phone: s.store_phone,
+      store_name: s.store_name, store_phone: s.store_phone, store_logo: s.store_logo,
       quote_no: x.quote_no, date: x.date, valid_until: x.valid_until, expired: x.valid_until < fmtDate_(P.now()),
       customer: x.customer_name, cashier: x.user_name, updated_at: x.updated_at,
       items: quoteItems(x).map(function (i) { return { name: i.name, qty: i.qty, price: i.price, subtotal: i.subtotal }; }),

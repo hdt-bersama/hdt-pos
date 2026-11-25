@@ -332,6 +332,7 @@ table.t{ width:100%; border-collapse:collapse; font-size:14px; }
 .inv.m-caponly .inv-stamp .inv-matguide{ visibility:hidden; }
 .verify{ flex:1; display:flex; justify-content:center; align-items:flex-start; padding:20px 14px 40px; }
 .verify-card{ width:100%; max-width:440px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+.verify-logo{ display:block; max-width:180px; max-height:64px; width:auto; height:auto; object-fit:contain; margin:0 0 12px; }
 .verify-head{ padding:18px 20px 0; } .verify-head small{ display:block; color:var(--muted); } .verify-head strong{ font-size:19px; }
 .verify-verdict{ display:flex; align-items:center; gap:12px; margin:14px 20px; padding:12px 14px; border-radius:12px; }
 .verify-verdict svg{ flex:none; } .verify-verdict b{ display:block; font-size:16px; } .verify-verdict span{ font-size:13px; }
@@ -2430,7 +2431,7 @@ function createBackend_(P) {
     var s = loadSettings();
     var c = t.customer_id > 0 ? db.all('Customers').filter(function (x) { return x.id === t.customer_id; })[0] : null;
     return {
-      store_name: s.store_name, store_phone: s.store_phone,
+      store_name: s.store_name, store_phone: s.store_phone, store_logo: s.store_logo,
       invoice_no: t.invoice_no, date: t.date, customer: c ? c.name : t.customer_name, cashier: t.user_name,
       method: t.method, status: t.status,
       items: db.all('TxItems').filter(function (i) { return i.tx_id === t.id; }).map(function (i) { return { name: i.name, qty: i.qty, price: i.price, subtotal: i.subtotal }; }),
@@ -2504,7 +2505,7 @@ function createBackend_(P) {
     if (!x) { fail('Penawaran tidak ditemukan atau kode verifikasi tidak cocok.', 'NOTFOUND'); }
     var s = loadSettings();
     return {
-      store_name: s.store_name, store_phone: s.store_phone,
+      store_name: s.store_name, store_phone: s.store_phone, store_logo: s.store_logo,
       quote_no: x.quote_no, date: x.date, valid_until: x.valid_until, expired: x.valid_until < fmtDate_(P.now()),
       customer: x.customer_name, cashier: x.user_name, updated_at: x.updated_at,
       items: quoteItems(x).map(function (i) { return { name: i.name, qty: i.qty, price: i.price, subtotal: i.subtotal }; }),
@@ -4764,7 +4765,7 @@ async function showVerify(q) {
   document.title = lbl + ' ' + q.no;
   const ICO = { ok: '<path d="M8.5 15.5l4.2 4.2 8.8-9"/>', warn: '<path d="M15 8v8M15 21v.5"/>', bad: '<path d="M10 10l10 10M20 10L10 20"/>' };
   const verdict = (kind, title, sub) => '<div class="verify-verdict ' + kind + '"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="15" cy="15" r="13.5" stroke-width="2"/>' + ICO[kind] + '</svg><div><b>' + title + '</b><span>' + sub + '</span></div></div>';
-  const card = (store, inner) => { box.innerHTML = '<div class="verify-card"><div class="verify-head"><small>' + lbl + '</small><strong>' + esc(store || 'HDT POS') + '</strong></div>' + inner + '</div>'; };
+  const card = (store, inner, logo) => { box.innerHTML = '<div class="verify-card"><div class="verify-head">' + (logo && /^data:image\//.test(logo) ? '<img class="verify-logo" src="' + esc(logo) + '" alt="Logo ' + esc(store || 'toko') + '">' : '') + '<small>' + lbl + '</small><strong>' + esc(store || 'HDT POS') + '</strong></div>' + inner + '</div>'; };
   const retry = msg => { card('', verdict('warn', 'Belum bisa diperiksa', esc(msg)) + '<div class="verify-msg">' + doc + ' <b>' + esc(q.no) + '</b> belum berhasil diperiksa. Pastikan internet aktif, lalu coba lagi.<br><button type="button" class="btn btn-primary" id="vRetry">Coba lagi</button></div>'); $('#vRetry').onclick = () => showVerify(q); };
   const bad = () => card('', verdict('bad', 'Tidak terverifikasi', doc + ' ini tidak tercatat di sistem toko') + '<div class="verify-msg">Nomor <b>' + esc(q.no) + '</b> dengan kode pada QR ini tidak ditemukan. Jika Anda menerima dokumen ini dari toko, hubungi toko untuk memastikannya.</div>');
   const url = getPublicApiUrl();
@@ -4790,7 +4791,7 @@ async function showVerify(q) {
   card(t.store_name, head + '<dl>' + info + '</dl>' +
     '<div class="verify-items">' + t.items.map(i => '<div><span>' + esc(i.name) + '<small>' + int(i.qty) + ' × ' + int(i.price) + '</small></span><span>' + int(i.subtotal) + '</span></div>').join('') + '</div>' +
     sum + '<div class="verify-total"><span>' + (isQ ? 'Total penawaran' : 'Total') + '</span><span>' + rp(t.grand_total) + '</span></div>' +
-    '<div class="verify-foot">' + (isQ ? 'Ini penawaran harga, bukan bukti pembayaran. ' : '') + 'Jika isi halaman ini berbeda dengan dokumen yang Anda pegang, hubungi toko' + (t.store_phone ? ' di ' + esc(t.store_phone) : '') + '.</div>');
+    '<div class="verify-foot">' + (isQ ? 'Ini penawaran harga, bukan bukti pembayaran. ' : '') + 'Jika isi halaman ini berbeda dengan dokumen yang Anda pegang, hubungi toko' + (t.store_phone ? ' di ' + esc(t.store_phone) : '') + '.</div>', t.store_logo);
 }
 
 async function boot() {
